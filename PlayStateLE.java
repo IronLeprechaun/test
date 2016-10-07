@@ -1,6 +1,8 @@
 package com.dvreiter.starassault.Menu.LE;	
 
+import com.dvreiter.starassault.*;
 import android.os.*;
+import android.app.*;
 import com.badlogic.gdx.utils.*;
 import com.dvreiter.starassault.Player.*;
 import java.io.*;
@@ -9,12 +11,16 @@ import org.flixel.event.*;
 import org.flixel.ui.*;
 import com.dvreiter.starassault.Menu.LE.*;
 import com.dvreiter.starassault.Menu.*;
-import com.badlogic.gdx.scenes.scene2d.ui.*;
+import android.text.method.*;
+import com.badlogic.gdx.maps.tiled.*;
+import org.flixel.system.*;
+import android.graphics.*;
+import android.content.*;
 import android.widget.*;
-import org.flixel.ui.event.*;
+import android.accounts.*;
 
 
-public class PlayStateLE extends FlxState
+public class PlayStateLe2 extends FlxState 
 {	
 
 		private static final int TILE_WIDTH = 16;
@@ -24,7 +30,11 @@ public class PlayStateLE extends FlxState
 
 		private int[] ScreenData;
 
-		public Txtsaver pr;
+		//private FlxObject[] highlightBox;
+		private FlxSprite[] highlightBox;
+//	private MainActivity intent;
+
+		public static PrintWriter pr;
 
 		//new Level info
 		public static boolean loadLevel;
@@ -37,10 +47,17 @@ public class PlayStateLE extends FlxState
 		private boolean isPortalUnlock = false;
 		private boolean isLockDoor = false;
 		private boolean isLockDKey = false;
+		private boolean ifGravToggle = false;
+		private boolean allCode = true;
 		private FlxTimer timer;
+		private boolean whichPlayer;
+
+		private String playerInfo,coinInfo,lockDoorInfo,lockDKeyInfo;
+		private String mintCandyPUInfo,endPortalInfo,endPortalCoinInfo,skeltonInfo;
+		private String spikesInfo,leverInfo,temInfo,termimatorInfo;
 
 		public FlxButton pause;
-		public EthTileMap level;
+		public FlxTilemap level;
 		public FlxTileblock block;
 		private FlxButton closeMenu;
 		private FlxButton Menu;
@@ -53,11 +70,14 @@ public class PlayStateLE extends FlxState
 		private FlxButton backbtn;
 		private FlxButton BackCheckBtn,BackCheckBtnNo;
 		private FlxButton switchPlayer;
+		private FlxButton resetbtn;
+		private FlxButton sharebtn;
 		private int BlockOMode;
 		private int blockX,blockY;
 
 		private int lastPBlockX,lastPBlockY;
 
+		private int i,x,y;
 		private int Item, Type;
 		private String []blockNames;
 		private String ifSaved = " ";
@@ -67,13 +87,13 @@ public class PlayStateLE extends FlxState
 
 		FlxVirtualPad pad;
 		PlayerLE playerLE;
-
+		Player player;
 		FlxGroup _bullets;
 		LELevelLoader LoadLevel;
 
 		ErrorReporter error;
 
-		//Advance stuffd
+		//Advance stuff
 		private int [] [] [] levelData;
 
 		private int blockMax = 21;
@@ -88,33 +108,9 @@ public class PlayStateLE extends FlxState
 
 		private String turretInfo;
 
-		private FlxTileblock titleBlock1;
-
-		private FlxTileblock titleBlock2;
-
-		private tileBlockList list;
-
-		private FlxRadioButtonGroup radioButtons;
-
-		private FlxRadioButton button1;
-
-		private FlxRadioButton button2;
-
-		private String[] allnames;
-
-		private FlxUIGroup maybebaby;
-
-		private FlxGroup _group;
-
-		private FlxSave guiAlpha;
-
-
-
-
-
 		@Override
 		public void create()
-		{				
+		{					
 				error = new	ErrorReporter();
 
 				if (loadLevel == true)
@@ -122,61 +118,45 @@ public class PlayStateLE extends FlxState
 						LoadLevel = new LELevelLoader();
 						try
 						{
-								error.logData("PlayStateLe:" + "Start of load Map");
-								LoadLevel.loadLevel(levelName + "/leveldata.txt");
-								error.logData("levelname:" +levelName);
-								String data[] = LoadLevel.getLevel();
-								error.logData("PlayStateLe:" + "data array done");
+								LoadLevel.loadLevel(levelName);
+
+								int data[] = new int[LoadLevel.getLevelWidth() * LoadLevel.getLevelHeight()];
+								data = LoadLevel.getLevel();
 								levelWidth = LoadLevel.getLevelWidth();
 								levelHeight = LoadLevel.getLevelHeight();
-								level = new EthTileMap();
-								level.loadMap(data,levelWidth, "tilemap.png" ,16, 16);// 50x30
+								level = new FlxTilemap();
+								level.loadMap(FlxTilemap.arrayToCSV(new IntArray(data), levelWidth), "tilemap.png", 16, 16);// 50x30
 								add(level);
-								error.logData("PlayStateLe:" + "MapLoaded");
-								boolean[] objects = LoadLevel.getIfObjects();
-								isPlayer = objects[0];
-								isPortal = objects[1];
-								isPortalUnlock = objects[2];
-								
 						}
 						catch (Exception e)
 						{
-								error.reportError(e);
+								error.reportError(e.toString());
 								FlxG.switchState(new PlayStateLESettings());	
 						}
 				}
 				else
 				{
 						int data[] = new int[levelHeight * levelWidth];
-						level = new EthTileMap();
-						level.loadMap(EthTileMap.arrayToCSV(new IntArray(data), levelWidth), "tilemap.png", 16, 16);// 50x30
+						level = new FlxTilemap();
+						level.loadMap(FlxTilemap.arrayToCSV(new IntArray(data), levelWidth), "tilemap.png", 16, 16);// 50x30
 						add(level);
 				}
-
-				guiAlpha = new FlxSave();
-				guiAlpha.bind("Options");//Test
-				//Save
-				if(guiAlpha.data.get("Alpha",float.class) == null)
-				{
-						guiAlpha.data.put("Alpha", 7);
-						guiAlpha.flush();
-				}
-
-				//load
-				@SuppressWarnings("unchecked")
-				float  Alp = guiAlpha.data.get("Alpha", float.class);
-				float AlphaLevel = Alp/10;
 
 				FlxG.setBgColor(0xFFE0CCFF);
 				FlxG.mouse.show();
 
+				// One Block Debugged
+				//highlightBox = new FlxObject(0,0,TILE_WIDTH, TILE_HEIGHT);
+				//highlightBox = new FlxObject[2];
+				highlightBox = new FlxSprite[levelWidth];
+				drawBox();
 				//level end
 
-				String[] tempBlockNames = {"Eraser","Grass1","Bricks11","Bricks2","GrassLeft","GrassRight","GrassAlone","DirtStone1","GrassSolid","FullDirt","Stone1","NetherBlock", "Grass2","Invalid Block","Invalid Block","Invalid Block","Invalid Block","Invalid Block","DirtStone2","Invalid Block","Invalid Block","Stone2"};	
+				String[] tempBlockNames = {"Eraser","Grass1","Bricks1","Bricks2","GrassLeft","GrassRight","GrassAlone","DirtStone1","GrassSolid","FullDirt","Stone1","NetherBlock", "Grass2","Invalid Block","Invalid Block","Invalid Block","Invalid Block","Invalid Block","DirtStone2","Invalid Block","Invalid Block","Stone2"};	
 				blockNames = tempBlockNames;
-				String[] tempEntityNames = {"Player","Coin","Locked Door", "Key", "PepperMint", "EndPortal","EndPortalUnlock","Skeleton","Spikes","Switch", "Mage" , "Terminater" ,"Turret" , "Slime" };
+				String[] tempEntityNames = {"Player","Coin","Locked Door", "Key", "PepperMint", "EndPortal","EndPortalUnlock","Skeleton","Spikes","Switch", "Mage" , "Terminater" ,"Turret" };
 				entityNames = tempEntityNames;
-				String[] tempEntityFileNames = {"budderking","coin","keylock", "lockkey" , "peppermintpowerup" , "portal" , "Portalcoin" , "skeletonminion", "spikes" , "switch" , "mage" , "terminator", "switch","switch" };
+				String[] tempEntityFileNames = {"budderking","coin","keylock", "lockkey" , "peppermintpowerup" , "portal" , "Portalcoin" , "skeletonminion", "spikes" , "switch" , "mage" , "terminator", "switch"};
 				entityFileNames = tempEntityFileNames;
 				levelData = new int[levelWidth] [levelHeight] [3];
 
@@ -186,170 +166,132 @@ public class PlayStateLE extends FlxState
 				coords.scrollFactor.x = coords.scrollFactor.y = 0;
 				add(coords);
 
-				int xCoord = 316;
 				ifSavedTxt = new FlxText(40, 60, 100, "");
 				ifSavedTxt.setSize(16);
 				add(ifSavedTxt);
 				timer = new FlxTimer();
 
+				_littleGibs = new FlxEmitter();
+				_littleGibs.setXSpeed(-150, 150);
+				_littleGibs.setYSpeed(-200, 0);
+				_littleGibs.setRotation(-720, -720);
+				_littleGibs.gravity = 350;
+				_littleGibs.bounce = 0.5f;
+				_littleGibs.makeParticles("gibs.png", 100, 10, true, 0.5f);
 
-				int quickWidth = (tileBlockList.listWidth*16) +(2*tileBlockList.listBlockSpace) + ((tileBlockList.listWidth-1)*tileBlockList.listBlockSpace);
-				titleBlock1 = new FlxTileblock(FlxG.width-quickWidth, 0, quickWidth, FlxG.height);//780, 400
-				add(titleBlock1);
+				sharebtn = new FlxButton(230, 5, "Share", new IFlxButton(){@Override public void callback(){onShare();}});
+				sharebtn.scrollFactor.x = sharebtn.scrollFactor.y = 0;
+				add(sharebtn);		
 
-				titleBlock2 = new FlxTileblock(FlxG.width-(quickWidth-2), 2, quickWidth-4,FlxG.height-4);//780, 400
-				add(titleBlock2);
+				resetbtn = new FlxButton(310,45,"Clear", new IFlxButton(){@Override public void callback(){onClear();}});
+				resetbtn.scrollFactor.x = resetbtn.scrollFactor.y = 0;
+				add(resetbtn);
 
-				titleBlock1.setAlpha(AlphaLevel);
-				titleBlock2.setAlpha(AlphaLevel);
-				list= new tileBlockList(20,20,titleBlock1,titleBlock2);
-				add(list);
-
-				savebtn = new FlxButton(xCoord, FlxG.height-27, "Save", new IFlxButton(){@Override public void callback(){saveGame(levelName);}});
+				savebtn = new FlxButton(310, 25, "Save", new IFlxButton(){@Override public void callback(){saveGame(levelName);}});
 				savebtn.scrollFactor.x = savebtn.scrollFactor.y = 0;
-				savebtn.setAlpha(AlphaLevel);
-				savebtn.label.setAlpha(AlphaLevel);
 				add(savebtn);	
-				
 
-				backbtn = new FlxButton(xCoord, 5, "Back", new IFlxButton(){@Override public void callback(){onBack();}});
+				backbtn = new FlxButton(310, 5, "Back", new IFlxButton(){@Override public void callback(){onBack();}});
 				backbtn.scrollFactor.x = backbtn.scrollFactor.y = 0;
-				backbtn.setAlpha(AlphaLevel);
-				backbtn.label.setAlpha(AlphaLevel);
 				add(backbtn);	
 
-				Menu = new FlxButton(xCoord, 25, " ", new IFlxButton(){@Override public void callback(){onMenu();}});
+				Menu = new FlxButton(310, 30, " ", new IFlxButton(){@Override public void callback(){onMenu();}});
 				Menu.loadGraphic("LEShip.png");
 				add(Menu);	
 				Menu.visible = false;
 
-				itemBtn = new FlxButton(xCoord, 55, "Grass", new IFlxButton(){@Override public void callback(){onItem();}});
+				itemBackBtn = new FlxButton(310, 65, "Back A Item", new IFlxButton(){@Override public void callback(){onItemBack();}});
+				itemBackBtn.scrollFactor.x = itemBackBtn.scrollFactor.y = 0;
+				add(itemBackBtn);
+
+				itemBtn = new FlxButton(310, 85, "Grass", new IFlxButton(){@Override public void callback(){onItem();}});
 				itemBtn.scrollFactor.x = itemBtn.scrollFactor.y = 0;
-				itemBtn.setAlpha(AlphaLevel);
-				itemBtn.label.setAlpha(AlphaLevel);
 				add(itemBtn);
 
-				ItemDisplay = new FlxButton(xCoord, 75);
+				ItemDisplay = new FlxButton(310, 105, " ");
 				ItemDisplay.scrollFactor.x = ItemDisplay.scrollFactor.y = 0;
-				ItemDisplay.height= 16;
-				ItemDisplay.setAlpha(AlphaLevel);
 				add(ItemDisplay);
+				ItemDisplay.width = 100;
+				ItemDisplay.height = 100;
 
-				switchPlayer = new FlxButton(xCoord, 131, "SimulateLevel", new IFlxButton(){@Override public void callback(){onSimulateLevel();}});
+				typeBtn = new FlxButton(310, 121, "Blocks", new IFlxButton(){@Override public void callback()
+								{onType();}});
+				typeBtn.scrollFactor.x = typeBtn.scrollFactor.y = 0;
+				add(typeBtn);
+
+				BackCheckBtn = new FlxButton(160, 90, "Are You sure\n Â  Â  Yes", new IFlxButton(){@Override public void callback()
+								{onBackCheckBtn();}});
+				BackCheckBtn.scrollFactor.x = BackCheckBtn.scrollFactor.y = 0;
+				add(BackCheckBtn);
+
+				BackCheckBtnNo = new FlxButton(160, 110, "No", new IFlxButton(){@Override public void callback()
+								{onBackCheckBtnNo();}});
+				BackCheckBtnNo.scrollFactor.x = BackCheckBtnNo.scrollFactor.y = 0;
+				add(BackCheckBtnNo);
+
+				switchPlayer = new FlxButton(310, 161, "ChangePlayer", new IFlxButton(){@Override public void callback()
+								{onChangePlayer();}});
 				switchPlayer.scrollFactor.x = switchPlayer.scrollFactor.y = 0;
-				switchPlayer.setAlpha(AlphaLevel);
-				switchPlayer.label.setAlpha(AlphaLevel);
 				add(switchPlayer);
 
+				BackCheckBtnNo.visible = false;
+				BackCheckBtn.visible = false;
 
-				
-
-				closeMenu = new FlxButton(xCoord, 111, "Close Menu", new IFlxButton(){@Override public void callback(){onCloseMenu();}});
+				closeMenu = new FlxButton(310, 141, "Close Menu", new IFlxButton(){@Override public void callback()
+								{onCloseMenu();}});
 				closeMenu.scrollFactor.x = closeMenu.scrollFactor.y = 0;
-				closeMenu.setAlpha(AlphaLevel);
-				closeMenu.label.setAlpha(AlphaLevel);
-				add(closeMenu);	
+				add(closeMenu);
 
-				pad = new FlxVirtualPad(FlxVirtualPad.DPAD_FULL,0);pad.setAlpha(0.5f);
+				pad = new FlxVirtualPad(FlxVirtualPad.DPAD_FULL, FlxVirtualPad.A_B_X_Y);
+				pad.setAlpha(0.5f);
 
 				_bullets = new FlxGroup();
 				playerLE = new PlayerLE(2 * 16, 0, 16, 16, _bullets, _littleGibs, pad);
 
+				player = new Player(0, 0, 16, 16, _bullets, _littleGibs, pad);
+				player.setHasGravityToggle(true);
+				player.setHasFlyingToggle(false);
+				player.active = false;
+				player.visible = false;	
+
 				FlxG.camera.follow(playerLE, FlxCamera.STYLE_PLATFORMER);
-				FlxG.camera.setBounds(0, 0, levelWidth * 16, levelHeight * 16, true);// 1st 400,240  2nd 800,240, 3rd 1200,48
-				FlxUISkin skin = new FlxUISkin();
+				FlxG.camera.setBounds(0, 0, levelWidth * 16, levelHeight * 16, true);// 1st 400,240 Â 2nd 800,240, 3rd 1200,48
 
-				skin.DISABLED = 3;
-				skin.HIGHLIGHT_DISABLED = 4;
-				skin.ACTIVE_NORMAL = 5;
-				skin.ACTIVE_HIGHTLIGHT = 6;
-				skin.ACTIVE_PRESSED = 7;
-				skin.ACTIVE_DISABLED = 8;
-				skin.ACTIVE_HIGHTLIGHT_DISABLED = 9;
-				skin.labelPosition = FlxUISkin.LABEL_RIGHT;
-				skin.setFormat(FntRobotoRegular, 18);				
-
-				maybebaby = new FlxUIGroup(0,0, "");
-				add(maybebaby);
-				maybebaby.marginLeft = 0;
-				maybebaby.marginTop = 0;
-				
-
-
-				//combine 2 String Arrays
-				String[] skins = new String[tempBlockNames.length+ tempEntityFileNames.length];
-				for(int i = 0;i < tempBlockNames.length;i++)
-				{
-						skins[i] = tempBlockNames[i];
-				}
-				for(int i = 0;i < tempEntityFileNames.length;i++)
-				{
-						skins[tempBlockNames.length + i] = tempEntityFileNames[i];
-				}
-				error.logData(String.valueOf(skins.length));
-				//done combining
-				allnames = skins;
-				radioButtons = new FlxRadioButtonGroup();
-				
-
-				try{
-						int count = 0;
-						for (int i = 0;i < 9;i++)//height
-						{
-								for(int e = 0;e < 6;e++)//width
-								{
-										if(count < tempBlockNames.length)
-										{
-												skin.setImage("BlockTextures/" + skins[count]+".png",16,16);			
-												FlxRadioButton button = new FlxRadioButton(titleBlock2.x+(e*30)+2,titleBlock2.y+20+(i*30),String.valueOf(count),radioButtons,skin,"");
-												button.setAlpha(AlphaLevel);
-												maybebaby.add(button);
-										}
-										if((count >tempBlockNames.length-1) && (count < skins.length))
-										{
-												skin.setImage( skins[count]+".png",16,16);			
-												FlxRadioButton button = new FlxRadioButton(titleBlock2.x+(e*30)+2,titleBlock2.y+20+(i*30),String.valueOf(count),radioButtons,skin,"");
-												button.setAlpha(AlphaLevel);
-												maybebaby.add(button);
-										}
-										count++;				
-								}
-						}		
-						radioButtons.onChange = group;
-				}catch(Exception e){error.reportError(e);}
-
+				add(player);
 				add(playerLE);					
 				add(_littleGibs);
 				add(pad);
 				add(_bullets);
 
-				BackCheckBtn = new FlxButton(160, 90, "Are You sure\n     Yes", new IFlxButton(){@Override public void callback(){onBackCheckBtn();}});
-				BackCheckBtn.scrollFactor.x = BackCheckBtn.scrollFactor.y = 0;
-				add(BackCheckBtn);
-
-				BackCheckBtnNo = new FlxButton(160, 110, "No", new IFlxButton(){@Override public void callback(){onBackCheckBtnNo();}});
-				BackCheckBtnNo.scrollFactor.x = BackCheckBtnNo.scrollFactor.y = 0;
-				add(BackCheckBtnNo);
-				
-				BackCheckBtnNo.visible = false;
-				BackCheckBtn.visible = false;
-				
 				onItem();
+		}
 
-				pr = new Txtsaver();
-				try{
-						threadtest tesd = new threadtest(this);
-						Thread thred = new Thread(tesd);
-						thred.start();
+		public void drawBox(){
+				// World Grid Debug Size
+				for(i = 0; i < highlightBox.length; i++){
+						for(x = 0; x <= (levelWidth*16); x += 16){ //x=400 but changed for custom resizement
 
-				}catch(Exception e){
-						error.logData(e.toString());
+								if(x == (levelWidth*16) && y <= (levelHeight*16)){//x=400,y=240 default size but now changed for custom resizement
+										x=0;
+										y+=16;
+								}
+								highlightBox[i] = new FlxSprite(x,y);
+								highlightBox[i].loadGraphic("OutlineHitbox.png", true, true, 16, 16);
+								add(highlightBox[i]);
+								//for(int y = 0; y < highlightBox.length; y += 16){
+								//	highlightBox[i] = new FlxObject(x,0,TILE_WIDTH,TILE_HEIGHT);
+								// Â highlightBox[i].drawDebug();
+								//		}
+						}
 				}
 		}
 
-    @Override
+		@Override
 		public void update()
 		{	
+				//highlightBox.x = (float) (Math.floor(FlxG.mouse.x / TILE_WIDTH) * TILE_WIDTH);
+				//highlightBox.y = (float) (Math.floor(FlxG.mouse.y / TILE_HEIGHT) * TILE_HEIGHT);
+
 				if (FlxG.keys.pressed("BACK"))
 				{onMenu();}//If back button is pressed
 
@@ -359,18 +301,19 @@ public class PlayStateLE extends FlxState
 						blockY = (int)FlxG.mouse.y / TILE_HEIGHT;
 						//Get data map coordinate
 
-						coords.setText("Coords:" + "\n X:" + BackCheckBtn.x + "\n Y:" + BackCheckBtn.y + "\n" + Item + "\n" + isPlayer + "\nTile\n" + level.getTile(blockX, blockY) + "\nmouseX/Y" + FlxG.mouse.screenX / 16 + "/" + FlxG.mouse.screenY / 16+ "\n" + levelName);
+						coords.setText("Coords:" + "\n X:" + BackCheckBtn.x + "\n Y:" + BackCheckBtn.y + "\n" + Item + "\n" + isPlayer + "\nTile\n" + level.getTile(blockX, blockY) + "\nmouseX/Y" + FlxG.mouse.screenX / 16 + "/" + FlxG.mouse.screenY / 16);
 						ifSavedTxt.setText(ifSaved);
 
-//						if (FlxG.mouse.pressed() && FlxG.mouse.screenX < itemBackBtn.x || FlxG.mouse.screenX > itemBackBtn.x + itemBackBtn .width)
-//						{	
-//								if (FlxG.mouse.screenX > 85 || FlxG.mouse.screenY  < 125)
-//								{
-//										if (FlxG.mouse.screenX < 100 || FlxG.mouse.screenY > 15)
-//												onCloseMenu();
-//								}
-//						}
-						if (FlxG.mouse.pressed() && itemBtn.visible == false)
+
+						if (FlxG.mouse.pressed() && FlxG.mouse.screenX < itemBackBtn.x || FlxG.mouse.screenX > itemBackBtn.x + itemBackBtn .width)
+						{	
+								if (FlxG.mouse.screenX > 85 || FlxG.mouse.screenY < 125)
+								{
+										if (FlxG.mouse.screenX < 100 || FlxG.mouse.screenY > 15)
+												onCloseMenu();
+								}
+						}
+						if (FlxG.mouse.pressed() && typeBtn.visible == false)
 						{
 								placeItem(blockX, blockY);
 								lastPBlockX = blockX;
@@ -380,8 +323,22 @@ public class PlayStateLE extends FlxState
 						Menu.y = playerLE.y;
 				}
 				super.update();	
+				FlxG.collide(level, player);
 		}
 
+		/*	@Override
+		 public void draw()
+		 {
+		 super.draw();
+		 //To Show Grid and Debug All blocks
+		 for(int i = 0; i < highlightBox.length; i++){
+		 highlightBox[i].drawDebug();
+		 // Â highlightBox[0].drawDebug();
+		 //	highlightBox[1].drawDebug();
+		 }
+		 }
+
+		 */
 		private void placeItem(int mx, int my)
 		{
 				if (level.getTile(mx, my) == 22)
@@ -395,117 +352,330 @@ public class PlayStateLE extends FlxState
 				if (level.getTile(mx, my) == 28)
 				{isPortalUnlock = false;}
 
+				if (Type == 0)
+				{level.setTile(mx, my, Item, true);}
 
-				if(!(allnames[Item] == "Invalid Block"))
+				if (Type == 1)
 				{
-						level.setTile(mx, my, Item, true);
-				}				
+						switch (Item + 22)
+						{
+								case 22:if(isPlayer == false)
+										{
+												level.setTile(mx, my, Item + 22, true);
+												isPlayer = true;
+										}break;
+								case 23:level.setTile(mx, my, Item + 22, true);
+										break;
+								case 24:if (isLockDoor == false)
+										{
+												level.setTile(mx, my, Item + 22, true);
+												isLockDoor = true;
+										}
+										break;
+								case 25:if (isLockDKey == false)
+										{
+												level.setTile(mx, my, Item + 22, true);
+												isLockDKey = true;
+										}
+										break;
+								case 26:level.setTile(mx, my, Item + 22, true);
+										break;
+								case 27:if (isPortal == false)
+										{
+												level.setTile(mx, my, Item + 22, true);
+												isPortal = true;
+										}
+										break;
+								case 28:if (isPortalUnlock == false)
+										{
+												level.setTile(mx, my, Item + 22, true);
+												isPortalUnlock = true;
+										}
+										break;
+								default:level.setTile(mx, my, Item + 22, true);
+										break;
+						}
+				}
 
-				switch (Item)
-				{
-						case 22:if(isPlayer == false)
-								{
-										level.setTile(mx, my, Item, true);
-										isPlayer = true;
-								}break;
-						case 23:level.setTile(mx, my, Item, true);
-								break;
-						case 24:if (isLockDoor == false)
-								{
-										level.setTile(mx, my, Item, true);
-										isLockDoor = true;
-								}
-								break;
-						case 25:if (isLockDKey == false)
-								{
-										level.setTile(mx, my, Item, true);
-										isLockDKey = true;
-								}
-								break;
-						case 26:level.setTile(mx, my, Item, true);
-								break;
-						case 27:if (isPortal == false)
-								{
-										level.setTile(mx, my, Item, true);
-										isPortal = true;
-								}
-								break;
-						case 28:if (isPortalUnlock == false)
-								{
-										level.setTile(mx, my, Item, true);
-										isPortalUnlock = true;
-								}
-								break;
-				}				
+
 		}
 
 		public void updateItemDisplay()
 		{
 				try
 				{
-						if (Item < blockNames.length)
+						if (Type == 0)
 						{
+								typeBtn.label.setText("Blocks");		
+								if (Item > blockMax)
+								{Item = 0;}
+								if (Item < 0)
+								{Item = blockMax;}		
+
 								itemBtn.label.setText(blockNames[Item]);
 								ItemDisplay.loadGraphic("BlockTextures/" + blockNames[Item] + ".png");				
 						}
-						if (Item > blockNames.length- 1)
+						if (Type == 1)
 						{
-								itemBtn.label.setText(entityNames[Item-blockNames.length]);
-								ItemDisplay.loadGraphic(entityFileNames[Item-blockNames.length] + ".png");			
+								itemBtn.label.setText("Entities");
+								if (Item > entityNames.length)
+								{Item = 0;}
+								if (Item < 0)
+								{Item = entityNames.length;}
+
+								itemBtn.label.setText(entityNames[Item]);
+								ItemDisplay.loadGraphic(entityFileNames[Item] + ".png");			
 						}
 				}
 				catch (Exception e)
 				{
-						error.reportError(e);
+						error.reportError(e.toString());
 				}
 		}
 
 
 
-		
+		public int[] CSVtoArray(int width, int height, boolean allBlocks)
+		{
+				playerInfo = null;
+				coinInfo = null;
+				lockDoorInfo = null;
+				lockDKeyInfo = null;
+				mintCandyPUInfo = null;
+				endPortalInfo = null;
+				endPortalCoinInfo = null;
+				skeltonInfo = null;
+				spikesInfo = null;
+				leverInfo = null;
+				temInfo = null;
+				termimatorInfo = null;
+				mageInfo = null;
+				turretInfo = null;
+
+				ScreenData = new int[width * height];
+				int round = 0;
+
+				for (int y = 0; y <= height - 1; y = y + 1)
+				{
+						for (int x = 0; x <= width - 1; x = x + 1)
+						{
+								ScreenData[round] = level.getTile(x , y);	
+								if (ScreenData[round] == 22)
+								{
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;
+												playerInfo = "_player = new Player(" + x * 16 + "," + y * 16 + ",16,16,_bullets,_littleGibs, pad);" + System.lineSeparator() + "_player.setHasGravityToggle(" + ifGravToggle + ");" + System.lineSeparator() + "_player.setHasFlyingToggle(true);";
+										}
+								}
+								else if (ScreenData[round] == 23)
+								{
+										if (coinInfo == null)
+										{
+												coinInfo = "coins = new FlxGroup();";
+										}
+										coinInfo = coinInfo + " \ncreateCoin(" + x * 16 + "," + y * 16 + ");";
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;	
+										}
+								}
+								else if (ScreenData[round] == 24)
+								{	if (allBlocks)
+										{
+												ScreenData[round] = 0;
+										}
+										lockDoorInfo = "lock = new FlxSprite(" + x * 16 + "," + y * 16 + ");\nlock.loadGraphic(" + '"' + "keylock.png" + '"' + ", true, true, 16, 16);\n Â lock.immovable = true;\nadd(lock);";	
+								}
+								else if (ScreenData[round] == 25)
+								{
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;
+										}
+										lockDKeyInfo = "key = new FlxSprite(" + x * 16 + "," + y * 16 + ");\nkey.loadGraphic(" + '"' + "lockkey.png" + '"' + ", true, true, 16, 16); Â \nkey.immovable = true;\nadd(key);";	
+								}
+								else if (ScreenData[round] == 26)
+								{
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;	
+										}
+										if (mintCandyPUInfo == null)
+										{
+												mintCandyPUInfo = "ppowerupp = new FlxGroup();\n";	
+										}
+										mintCandyPUInfo = mintCandyPUInfo + "createPpowerup(" + x * 16 + "," + y * 16 + ");\n";			
+								}
+								else if (ScreenData[round] == 27)//here
+								{
+										endPortalInfo = "portal = new FlxSprite(50, 50);//50\nportal.loadGraphic(" + '"' + "portal.png" + '"' + ", true, true, 16, 16);\nportal.addAnimation(" + '"' + "spinning" + '"' + ", new int[]{0, 1, 2}, 6, true);\nportal.play(" + '"' + "spinning" + '"' + ");\nportal.immovable = true;\n" + "portal.exists = " + !isPortalUnlock + ";\n" + "add(portal);";
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;
+										}
+								}
+								else if (ScreenData[round] == 28)
+								{
+										endPortalCoinInfo = "portalcoin = new FlxSprite(170, 80);//80\nportalcoin.loadGraphic(" + '"' + "Portalcoin.png" + '"' + ", true, true, 16, 16);\nportalcoin.addAnimation(" + '"' + "rotate" + '"' + ", new int[]{0, 1, 2}, 4, true);\nportalcoin.play(" + '"' + "rotate" + '"' + ");\nadd(portalcoin);\n";
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;
+										}
+								}
+								else if (ScreenData[round] == 29)
+								{
+										if (skeltonInfo == null)
+										{skeltonInfo = "skeletons = new FlxGroup();\n";}
+										skeltonInfo = skeltonInfo + "createSkelton(" + x * 16 + "," + y * 16 + ");";
+										if (allBlocks)
+										{ScreenData[round] = 0;}
+								}
+								else if (ScreenData[round] == 30)//spikes
+								{
+										if (spikesInfo == null)
+										{
+												spikesInfo = "spikes = new FlxGroup();\n";
+										}
+										spikesInfo = spikesInfo + " createSpike(" + x * 16 + "," + y * 16 + ",0);\n";
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;
+										}
+								}
+								else if (ScreenData[round] == 31)
+								{
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;
+										}
+										leverInfo = "wallSwitch = new FlxSprite(" + x * 16 + "," + y * 16 + ");\nwallSwitch.loadGraphic(" + '"' + "switch.png" + '"' + ", true, true, 16, 16);\nwallSwitch.immovable = true;\nadd(wallSwitch);";
+								}
+								else if (ScreenData[round] == 32)
+								{
+										if(mageInfo == null)
+										{
+												mageInfo += "mages = new FlxGroup();\n";
+										}
+										mageInfo += "createMage("+ x +","+ y+ ",_bullets,1);\n";
+
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;
+										}
+								}
+								else if (ScreenData[round] == 33)
+								{
+										if (allBlocks)
+										{
+												ScreenData[round] = 0;
+										}
+										if (termimatorInfo == null)
+										{
+												termimatorInfo = "enemies = new FlxGroup();\n";
+										}
+										termimatorInfo = termimatorInfo + "createEnemy(" + x * 16 + "," + y * 16 + ",500);\n";
+								}
+								round++;
+						}
+				}
+				return ScreenData;	
+		}
 
 		private void saveGame( String fileName)
 		{
 				try
-				{	
-						pr.setDir("/Worlds/"+ fileName);
-						pr.setFilename("leveldata.txt");
-						String [] views;
-						views = level.get1DStringArray();
+				{		
+						int [] views;
+						views = new int [ levelWidth * levelHeight];
+						views = CSVtoArray(levelWidth, levelHeight, false);
 
-						pr.print("%");
-						if(playerMode)
-						{pr.print(1);}else{pr.print(0);}
-						pr.print("|" + levelWidth + "," + levelHeight + "}");
-						pr.print("~" + System.currentTimeMillis() + "}");
-						pr.print("{");
+						if (fileName == null)
+						{fileName = "test.txt";}
+
+						final File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Bobrun/");
+
+						if (!dir.exists())
+								dir.mkdirs(); 
+
+
+						final File myFile = new File(dir, fileName);
+
+
+						if (!myFile.exists()) 
+								myFile.createNewFile();
+
+						PrintWriter pr = new PrintWriter(myFile);  
 
 						for (int i=0; i < views.length ; i++)
 						{			
-								pr.print(views[i]);
-								
-								if (i != views.length - 1){pr.print(",");
-
-								}else{pr.print("}");}
-						}
-						if(pr.save())
-						{
-								if (ifSaved == " ")
-								{ifSaved = "Saved";}
-								timer.start(3, 1, Tstop);
-								try
+								if (i == 0)
 								{
-										File f = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Bobrun/Worlds/" + fileName+".txt");
-										f.delete();
-								}catch(Exception e){}
-								
-						}else{
-								ifSaved = "Save Failed";
-								timer.start(3, 1, Tstop);
+
+										pr.print("%" + playerMode);
+										pr.print("|" + levelWidth + "," + levelHeight + "}");
+										pr.print("~" + System.currentTimeMillis() + "}");
+										pr.print("{");
+								}
+								pr.print(views[i]);
+								if (i != views.length - 1)
+								{
+										pr.print(",");
+								}
+								else
+								{
+										pr.print("}");
+								}
 						}
+						pr.close();
+				}catch (Exception e){error.reportError(e.toString());}		
 
-				}catch (Exception e){error.reportError(e);}		
+				if(allCode)		
+				{
+						try
+						{		
+								int [] views;
+								views = new int [ levelWidth * levelHeight];
+								views = CSVtoArray(levelWidth, levelHeight, false);
 
+								if (fileName == null)
+								{fileName = "test.txt";}
+
+								final File dir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Bobrun/");
+								if (!dir.exists())
+										dir.mkdirs(); 
+
+								final File myFile = new File(dir, "CodeFor" + fileName);
+								if (!myFile.exists()) 
+										myFile.createNewFile();
+
+								PrintWriter pr = new PrintWriter(myFile);  
+
+								for (int i=0; i < views.length ; i++)
+								{			
+										if (i == 0 && allCode == true)
+										{	
+												pr.print(info.prImportVars(endPortalCoinInfo, spikesInfo, coinInfo, leverInfo, lockDKeyInfo, termimatorInfo, skeltonInfo, mintCandyPUInfo, color,mageInfo, fileName));
+												pr.println("int data [] = {");	
+										}
+										pr.print(views[i]);
+										if (i != views.length - 1)
+										{
+												pr.print(",");
+										}
+										else
+										{
+												pr.print("}");
+												pr.print(info.tileMaptxt(levelWidth));
+												pr.print(info.afterArrayTxt(endPortalCoinInfo, spikesInfo, coinInfo, leverInfo, lockDKeyInfo, termimatorInfo, skeltonInfo, mintCandyPUInfo, color, endPortalInfo, lockDoorInfo, playerInfo, levelWidth, levelHeight, mageInfo));
+										}
+								}
+								pr.close();
+						}catch (Exception e){error.reportError(e.toString());}	
+				}
+				if (ifSaved == " ")
+				{ifSaved = "Saved";}
+				timer.start(3, 1, Tstop);
 		}
 
 		//Timer fix
@@ -515,17 +685,43 @@ public class PlayStateLE extends FlxState
 				}
 		};
 
-		IFlxRadioButtonGroup group = new IFlxRadioButtonGroup(){
-				@Override
-				public void callback()
-				{
-						Item = Integer.parseInt(radioButtons.getSelected());
-						updateItemDisplay();
-				}		
-		};
-
-
 		//Buttons
+		private void onClear(){
+				int[] data = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+						0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+				level.loadMap(FlxTilemap.arrayToCSV(new IntArray(data), levelWidth), "tilemap.png", 16, 16);
+		}
+
+		private void onShare(){
+				/*	Intent i = new Intent(Intent.ACTION_SEND);
+				 i.setType("message/rfc822");
+				 i.putExtra(Intent.EXTRA_EMAIL Â , new String[]{"recipient@example.com"});
+				 i.putExtra(Intent.EXTRA_SUBJECT, "subject of email");
+				 i.putExtra(Intent.EXTRA_TEXT Â  , "body of email");*/
+				/*	try {
+				 startActivity(Intent.createChooser(i, "Send mail..."));
+				 } catch (android.content.ActivityNotFoundException ex) {
+				 Toast.makeText(MainActivity.this, "There are no email clients installed.", Toast.LENGTH_SHORT).show();
+				 }*/
+				FlxG.switchState(new ShareLevels());
+
+		}
+
 		private void onItem()
 		{
 				Item++;
@@ -548,62 +744,80 @@ public class PlayStateLE extends FlxState
 				BackCheckBtnNo.visible = false;
 				BackCheckBtn.visible = false;
 		}
+		private void onItemBack()
+		{
+				Item = Item - 1;
+				updateItemDisplay();	
+		}
+
+		private void onType()
+		{
+				Type++;
+				if (Type > 1)
+				{Type = 0;}
+				updateItemDisplay();
+		}
+
 
 		private void onMenu()
 		{
 				if (!FlxG.keys.pressed("BACK")){level.setTile(lastPBlockX, lastPBlockY, 0);}
 				savebtn.visible = true;
+				itemBackBtn.visible = true;
 				itemBtn.visible = true;
+				typeBtn.visible = true;
+				Menu.visible = false;
+				resetbtn.visible = true;
+				sharebtn.visible = true;
 				closeMenu.visible = true;
-				pad.active = true;
-				pad.visible = true;
+				ItemDisplay.visible = true;
+				pad.active = false;
+				pad.visible = false;
 				backbtn.visible = true;
 				switchPlayer.visible = true;
-				titleBlock1.visible = true;
-				titleBlock2.visible = true;
-				Menu.visible = false;
-				maybebaby.visible = true;
-				maybebaby.active = true;
-				closeMenu.visible = true;
 
+		}
 
+		private void onChangePlayer()
+		{
+				whichPlayer = !whichPlayer;
+				if (whichPlayer)
+				{
+						FlxG.camera.follow(player);
+						player.active = true;
+						player.visible = true;
+						playerLE.active = false;
+						playerLE.visible = false;	
+				}
+				else
+				{
+						FlxG.camera.follow(playerLE);
+						player.active = false;
+						player.visible = false;
+						playerLE.active = true;
+						playerLE.visible = true;	
+				}
 		}
 
 		private void onCloseMenu()
 		{
-				pad.visible = false;
-				pad.active = false;
+				pad.visible = true;
+				pad.active = true;
 				savebtn.visible = false;
+				itemBackBtn.visible = false;
 				itemBtn.visible = false;
-				backbtn.visible = false;
-				switchPlayer.visible = false;
-				titleBlock1.visible = false;
-				titleBlock2.visible = false;
-				Menu.visible = true;
-				maybebaby.visible = false;
-				maybebaby.active = false;
+				typeBtn.visible = false;
+				Menu.visible = true;	
 				closeMenu.visible = false;
+				ItemDisplay.visible = false;
+				backbtn.visible = false;
+				resetbtn.visible = false;
+				sharebtn.visible = false;
+				switchPlayer.visible = false;
 
-		}
-
-
-		public void onSimulateLevel()
-		{
-				saveGame(levelName);
-				LevelLoader.filename = levelName;
-				LevelLoader.openFromLe = true;
-				FlxG.switchState(new LevelLoader());
-		}
-		
-		public void onTest(){
-				
-				ErrorReporter.logData("test worked" + levelName);
 		}
 
 		@Override
-		public void draw(){super.draw();}
-
-		@Override 
 		public void destroy()
 		{
 				super.destroy();
@@ -614,41 +828,3 @@ public class PlayStateLE extends FlxState
 				pad = null;
 		}	
 }
-
-class threadtest implements Runnable
-{
-		private PlayStateLE PSL;
-		public threadtest(PlayStateLE tst){
-				PSL = tst;
-		}
-		@Override
-		public void run()
-		{
-				ErrorReporter.logData("hi,how are you");
-				PSL.onTest();
-		}
-}
-
-//class ThreadA implements Runnable{
-//		public void run(){
-////do something
-//		}
-//		public void setSomething(){}
-//}
-//
-//class ThreadB implements Runnable{
-//		private ThreadA aref;
-//		public ThreadB(ThreadA ref){aref=ref;}
-//		public void run(){
-//				aref.setSomething();//calling the setSomething() with this thread!! no thread a
-//		}
-//}
-//
-//class Foo{
-//		public static void main(String...arg){
-//				ThreadA a=new ThreadA();
-//				new Thread(a).start();
-//				ThreadB b=new ThreadB(b);
-//				new Thread(b).start();
-//		}
-//}
